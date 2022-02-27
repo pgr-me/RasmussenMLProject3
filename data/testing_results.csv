@@ -1,0 +1,6 @@
+n,pos,neg,tp,tn,fp,fn,prec,rec,f1,acc,k,method,sigma,epsilon,problem_class,dataset_name,fold
+39.0,59.0,-20.0,18.0,0.0,0.0,0.0,1.0,0.3050847457627119,0.4675324675324675,24.0,1,edited,None,None,classification,car,1
+39.0,59.0,-20.0,18.0,0.0,0.0,0.0,1.0,0.3050847457627119,0.4675324675324675,24.0,1,edited,None,None,classification,car,2
+39.0,59.0,-20.0,18.0,0.0,0.0,0.0,1.0,0.3050847457627119,0.4675324675324675,24.0,1,edited,None,None,classification,car,3
+39.0,59.0,-20.0,18.0,0.0,0.0,0.0,1.0,0.3050847457627119,0.4675324675324675,24.0,1,edited,None,None,classification,car,4
+39.0,59.0,-20.0,18.0,0.0,0.0,0.0,1.0,0.3050847457627119,0.4675324675324675,24.0,1,edited,None,None,classification,car,5
