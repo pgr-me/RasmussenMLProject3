@@ -4,6 +4,8 @@
 This module provides base node class.
 
 """
+# Standard library imports
+import collections as c
 
 
 class Node:
@@ -19,7 +21,7 @@ class Node:
         """
         # function arguments
         if children is None:
-            children = {}
+            children = c.defaultdict(lambda: None)
         self.name = name
         self.parent = None
         self.children = children

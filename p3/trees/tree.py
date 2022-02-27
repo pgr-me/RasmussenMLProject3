@@ -12,8 +12,10 @@ import typing as t
 # Local imports
 from p3.nodes import Node
 
+
 class TreeError(Exception):
     pass
+
 
 class Tree:
     """
@@ -21,9 +23,9 @@ class Tree:
     """
 
     def __init__(self):
-        self.root = None
-        self.nodes = c.defaultdict(lambda: None)
-        self.height = None
+        self.root: t.Union[Node, None] = None
+        self.nodes: c.defaultdict[str: Node, None] = c.defaultdict(lambda: None)
+        self.height: t.Union[int, None] = None
 
     def __repr__(self):
         return f"Tree rooted at {self.root}."
