@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 2, knn_classifer.py
+"""Peter Rasmussen, Programming Assignment 3, knn_classifer.py
 
 This module provides the KNNClassifer class, which inherits from the KNN base class. KNNClassifier supports three
 methods: default, edited, and condensed.

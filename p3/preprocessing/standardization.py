@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 2, standardization.py
+"""Peter Rasmussen, Programming Assignment 3, standardization.py
 
 This module provides data standardization functions.
 

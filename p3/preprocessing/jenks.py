@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 2, jenks.py
+"""Peter Rasmussen, Programming Assignment 3, jenks.py
 
 This module provides functions to split data using Jenks natural breaks method.
 

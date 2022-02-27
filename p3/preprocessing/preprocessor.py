@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 2, preprocessing.py
+"""Peter Rasmussen, Programming Assignment 3, preprocessing.py
 
 This module provides the Preprocessor class.
 

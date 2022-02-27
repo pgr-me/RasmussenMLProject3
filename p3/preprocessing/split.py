@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 2, split.py
+"""Peter Rasmussen, Programming Assignment 3, split.py
 
 This module provides functions to split data into K folds and split training-validation into separate training and
 validation sets.

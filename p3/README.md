@@ -1,4 +1,4 @@
-# Peter Rasmussen, Programming Assignment 2
+# Peter Rasmussen, Programming Assignment 3
 
 This Python 3 program trains the k nearest neighbor predictor across six datasets, using accuracy for the classification data and normalized interquantile root mean squared error for the regression data.
 

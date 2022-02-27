@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 2, utils.py
+"""Peter Rasmussen, Programming Assignment 3, utils.py
 
 This module provides miscellaneous utility functions that support the core algorithms of this program.
 

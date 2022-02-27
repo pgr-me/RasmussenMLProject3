@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 2, visualization.py
+"""Peter Rasmussen, Programming Assignment 3, visualization.py
 
 This module provides various visualiation functions.
 

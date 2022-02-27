@@ -1,4 +1,4 @@
-"""Peter Rasmussen, Programming Assignment 2, run.py
+"""Peter Rasmussen, Programming Assignment 3, run.py
 
 The run function ingests user inputs to train majority predictors on six different datasets.
 

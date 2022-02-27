@@ -1,4 +1,4 @@
-"""Peter Rasmussen, Programming Assignment 2, __main__.py
+"""Peter Rasmussen, Programming Assignment 3, __main__.py
 
 This program trains a simple majority predictor across six datasets to estimate the 1) class for
 classification datasets or 2) mean for regression datasets. Classification datasets are scored on

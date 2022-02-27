@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 2, knn_regressor.py
+"""Peter Rasmussen, Programming Assignment 3, knn_regressor.py
 
 This module provides the KNNRegressor= class, which inherits from the KNN base class. KNNRegressor supports three
 methods: default, edited, and condensed.
