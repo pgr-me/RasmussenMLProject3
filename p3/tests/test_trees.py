@@ -12,16 +12,15 @@ import typing as t
 import pytest
 
 # Local imports
-from p3.nodes import Node
+from p3.nodes import DecisionNode
 from p3.trees import Tree, TreeError
 
 
-
-node_1 = Node("zounds")
-node_2 = Node("bounds")
-node_3 = Node("xounds")
-node_4 = Node("lounds")
-node_5 = Node("leaf")
+node_1 = DecisionNode("zounds")
+node_2 = DecisionNode("bounds")
+node_3 = DecisionNode("xounds")
+node_4 = DecisionNode("lounds")
+node_5 = DecisionNode("leaf")
 tree = Tree()
 tree.add_node(node_1)
 tree.add_node(node_2, node_1)
@@ -61,6 +60,7 @@ def test_remove_node():
     """
 
     tree.remove_node("bounds")
+
 
 def test_height():
     """

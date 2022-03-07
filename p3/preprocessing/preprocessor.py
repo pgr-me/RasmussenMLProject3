@@ -6,7 +6,8 @@ This module provides the Preprocessor class.
 """
 # Standard library imports
 from pathlib import Path
-from collections import defaultdict
+import collections as c
+
 import typing as t
 
 # Third party libraries
@@ -29,7 +30,8 @@ class Preprocessor:
         self.imputed_data: t.Union[pd.DataFrame, None] = None
         self.numeric_columns: list = None
         self.jenks_breaks: dict = {}
-        self.discretize_dict: defaultdict(lambda: {})
+        self.discretize_dict: c.defaultdict(lambda: {})
+        self.data_classes: t.Union[c.OrderedDict, None]
 
     def __repr__(self):
         return f"{self.dataset_name} Loader"
@@ -71,7 +73,7 @@ class Preprocessor:
             {"bare_nuclei": {"n_bins": 2, "binning": "equal_width"},
              "normal_nucleoli": {"n_bins": 2, "binning": "equal_width"}}
         """
-        self.discretize_dict = defaultdict(lambda: {}, discretize_dict)
+        self.discretize_dict = c.defaultdict(lambda: {}, discretize_dict)
         for col, bin_dict in self.discretize_dict.items():
             frame, retbins = self._discretize(self.data[col], bin_dict["n_bins"], bin_dict["binning"])
             self.data.drop(axis=1, labels=col, inplace=True)
@@ -209,6 +211,16 @@ class Preprocessor:
         """
         self.data = self.data.sample(frac=1, random_state=random_state)
         return self.data
+
+    def set_data_classes(self, features_only=True)->c.OrderedDict:
+        """
+        Set / update data classes attribute.
+        :return: Set / updated data classes
+        """
+        self.data_classes = self.names_meta["data_class"].to_dict(into=c.OrderedDict)
+        if features_only:
+            self.data_classes = c.OrderedDict((k, v) for k, v in self.data_classes.items() if k!=self.label)
+        return self.data_classes
 
     @staticmethod
     def _discretize(series: pd.Series, n_bins: int, binning: str = "equal_frequency") -> tuple:

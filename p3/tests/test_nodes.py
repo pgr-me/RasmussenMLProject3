@@ -12,7 +12,7 @@ import typing as t
 import pytest
 
 # Local imports
-from p3.nodes import Node
+from p3.nodes import DecisionNode
 
 
 def test_node_is_interior():
@@ -22,7 +22,7 @@ def test_node_is_interior():
     children = c.defaultdict(lambda: t.Union[None, int])
     children["a"] = 1
     children["b"] = 2
-    node = Node("zounds", children=children)
+    node = DecisionNode("zounds", children=children)
     assert node.is_interior()
 
 
@@ -30,5 +30,5 @@ def test_node_is_leaf():
     """
     Test node is a leaf.
     """
-    node = Node("zounds")
+    node = DecisionNode("zounds")
     assert node.is_leaf()

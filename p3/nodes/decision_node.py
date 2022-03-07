@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 3, decision_node.py
+"""Peter Rasmussen, Programming Assignment 3, node.py
 
 This module provides base node class.
 
 """
 # Standard library imports
-import collections as c
+import typing as t
 
+# Local imports
+from p3.nodes import BaseNode
 
-class BaseNode:
+class Node(BaseNode):
     """
     Base node for singly-linked list.
     """
@@ -20,12 +22,8 @@ class BaseNode:
         :param children: BaseNode children
         """
         # function arguments
-        if children is None:
-            children = c.defaultdict(lambda: None)
-        self.name = name
-        self.parent = None
-        self.children = children
-        self.height = 0
+        super().__init__(name, children)
+        self.mask: t.Union[]
 
     def __repr__(self):
         return self.name

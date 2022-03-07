@@ -10,7 +10,7 @@ import collections as c
 import typing as t
 
 # Local imports
-from p3.nodes import Node
+from p3.nodes import DecisionNode
 
 
 class TreeError(Exception):
@@ -23,14 +23,14 @@ class Tree:
     """
 
     def __init__(self):
-        self.root: t.Union[Node, None] = None
-        self.nodes: c.defaultdict[str: Node, None] = c.defaultdict(lambda: None)
+        self.root: t.Union[DecisionNode, None] = None
+        self.nodes: c.defaultdict[str: DecisionNode, None] = c.defaultdict(lambda: None)
         self.height: t.Union[int, None] = None
 
     def __repr__(self):
         return f"Tree rooted at {self.root}."
 
-    def add_node(self, node: Node, parent_node: Node = None):
+    def add_node(self, node: DecisionNode, parent_node: DecisionNode = None):
         """
         Add node to tree.
         :param node: Node to add
@@ -44,7 +44,6 @@ class Tree:
         # Case when tree is empty
         if self.is_empty():
             self.root = node
-            self.nodes[node.name] = node
             node.height = 0
             self.height = 0
 
@@ -53,7 +52,8 @@ class Tree:
             parent_node.children[node.name] = node
             node.parent = parent_node
             node.height = node.parent.height + 1
-            self.nodes[node.name] = node
+
+        self.nodes[node.name] = node
 
         # Update tree height
         self.set_height()
@@ -72,7 +72,7 @@ class Tree:
         self.height = height
         return self.height
 
-    def get_node(self, node_name: str) -> Node:
+    def get_node(self, node_name: str) -> DecisionNode:
         """
         Get node by its name.
         :param node_name:
@@ -96,7 +96,7 @@ class Tree:
         """
         return self.root is not None
 
-    def remove_node(self, node: t.Union[str, Node]) -> Node:
+    def remove_node(self, node: t.Union[str, DecisionNode]) -> DecisionNode:
         """
         Remove node from tree.
         :param node: Node to remove
@@ -163,7 +163,7 @@ class Tree:
         return self.height
 
     @staticmethod
-    def select_promotion_node(parent_node: Node) -> tuple:
+    def select_promotion_node(parent_node: DecisionNode) -> tuple:
         """
         Select child node to promote as parent.
         :param parent_node: Parent node of promotion candidates
