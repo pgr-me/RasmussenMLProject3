@@ -13,6 +13,23 @@ import numpy as np
 import pandas as pd
 
 
+def add_discretized_cols(data: pd.DataFrame, numeric_cols: list, quantiles: list) -> tuple:
+    """
+    Add candidate discretized columns to data.
+    :param data: Data of features and label
+    :param numeric_cols: Numeric columns to discretize
+    :param quantiles: List of percentiles to split on
+    :return: Dataframe with discretized columns
+    """
+    data_ = data.copy()
+    cuts_di = c.OrderedDict()
+    for numeric_col in numeric_cols:
+        disc_feat, cut_di = discretize_numeric(data_, numeric_col, quantiles)
+        cuts_di[numeric_col] = cut_di
+        data_ = pd.concat([data_, disc_feat], axis=1).drop(axis=1, labels=numeric_col)
+    return data_, cuts_di
+
+
 def compute_entropy(feature_counts: pd.Series) -> float:
     """
     Compute entropy of a node.
@@ -103,12 +120,7 @@ def discretize_numeric(data: pd.DataFrame, feature: str, quantiles: list) -> tup
         Example
         1              left        left        left        left        left
         2             right        left        left        left        left
-        3             right       right       right       right       right
-        4             right       right       right       right       right
-        5             right       right       right       right        left
-        6             right       right        left        left        left
-        7             right       right        left        left        left
-        8             right       right        left        left        left
+        ...             ...         ...         ...         ...         ...
         9             right       right       right        left        left
         10            right       right       right       right       right
     Example cut_dict output:
