@@ -6,9 +6,10 @@ This module provides base node class.
 """
 # Standard library imports
 import collections as c
+import typing as t
 
 
-class BaseNode:
+class Node:
     """
     Base node for singly-linked list.
     """
@@ -16,8 +17,8 @@ class BaseNode:
     def __init__(self, name: str, children=None):
         """
         Set name and optionally set data attributes.
-        :param name: BaseNode name
-        :param children: BaseNode children
+        :param name: Node name
+        :param children: Node children
         """
         # function arguments
         if children is None:
@@ -26,9 +27,13 @@ class BaseNode:
         self.parent = None
         self.children = children
         self.height = 0
+        self.root: t.Union[Node, None] = self
 
     def __repr__(self):
         return self.name
+
+    def assign_root(self, root):
+        self.root = root
 
     def is_interior(self):
         return len(self.children) > 0
