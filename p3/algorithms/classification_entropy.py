@@ -36,7 +36,7 @@ def compute_entropy(feature_counts: pd.Series) -> float:
     :param feature_counts: Node data
     :return: Node entropy
     """
-    _, label = feature_counts.index.names
+    label = feature_counts.index.names
     tots = feature_counts.groupby(label).sum().to_frame()
     tots["frac"] = tots["ct"] / tots["ct"].sum()
     return tots[["frac"]].multiply(np.log2(tots["frac"]), axis=0).sum().abs().iloc[0]
@@ -147,7 +147,7 @@ def discretize_numeric(data: pd.DataFrame, feature: str, quantiles: list) -> tup
     return discretized_features, cut_dict
 
 
-def get_feature_counts(data: pd.DataFrame, label, feature, ct_col="ct"):
+def get_feature_counts(data: pd.DataFrame, label, feature=None, ct_col="ct"):
     """
     Aggregate counts for a feature by label.
     :param data: Dataset
@@ -166,7 +166,11 @@ def get_feature_counts(data: pd.DataFrame, label, feature, ct_col="ct"):
     """
     feature_counts = data.copy()
     feature_counts[ct_col] = 1
-    return feature_counts.groupby([feature, label])[ct_col].sum().sort_index()
+    if feature is None:
+        index = [label]
+    else:
+        index = [feature, label]
+    return feature_counts.groupby(index)[ct_col].sum().sort_index()
 
 
 def pivot_feature_counts(feature_counts):

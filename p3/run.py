@@ -19,7 +19,7 @@ import pandas as pd
 
 # Local imports
 from p3.preprocessing import Preprocessor, get_standardization_cols, get_standardization_params, standardize
-from p3.algorithms import KNNClassifier, KNNRegressor
+#from p3.algorithms import KNNClassifier, KNNRegressor
 from p3.preprocessing.split import make_splits
 
 

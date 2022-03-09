@@ -11,7 +11,7 @@ import typing as t
 
 class Node:
     """
-    Base node for singly-linked list.
+    Base node that DecisionNode inherits from.
     """
 
     def __init__(self, name: str, children=None):
@@ -20,19 +20,24 @@ class Node:
         :param name: Node name
         :param children: Node children
         """
-        # function arguments
         if children is None:
-            children = c.defaultdict(lambda: None)
+            self.children = []
         self.name = name
         self.parent = None
-        self.children = children
         self.height = 0
+        self.depth = 0
         self.root: t.Union[Node, None] = self
+        self.leaves = []
 
     def __repr__(self):
-        return self.name
+        return str(self.name)
 
     def assign_root(self, root):
+        """
+
+        :param root:
+        :return:
+        """
         self.root = root
 
     def is_interior(self):
