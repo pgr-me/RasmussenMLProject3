@@ -106,6 +106,35 @@ def compute_unweighted_entropies(feature_counts: pd.Series):
     return fracs.multiply(np.log2(fracs)).fillna(0).abs().sum(axis=1)
 
 
+def discretize_ordinal(data, feature):
+    """
+    Create binary splits at each ordinal value.
+    :param data:
+    :param feature:
+    :return: Discrtized ordinal feature
+    Example output:
+                Ordinal_1 Ordinal_2 Ordinal_3 Ordinal_4
+        Example
+        0           right      left      left      left
+        1           right      left      left      left
+        2           right     right     right     right
+        3           right     right     right     right
+        4           right     right     right      left
+    """
+    discretized_features = []
+    feat_vals = sorted([int(x) for x in data[feature].unique()])
+
+    for feat_val in feat_vals[:-1]:  # We don't need the last, max ordinal value
+        col_name = f"{feature}_{feat_val}"
+        bins = [-float("inf"), feat_val, float("inf")]
+        labels = ["left", "right"]
+        cut, cut_val = pd.cut(data[feature], bins=bins, labels=labels, retbins=True)
+        cut.rename(col_name, inplace=True)
+        discretized_features.append(cut)
+    discretized_features = pd.concat(discretized_features, axis=1)
+    return discretized_features
+
+
 def discretize_numeric(data: pd.DataFrame, feature: str, quantiles: list) -> tuple:
     """
     Discretize numeric column so that it can be treated as a categorical column.
@@ -132,7 +161,7 @@ def discretize_numeric(data: pd.DataFrame, feature: str, quantiles: list) -> tup
                      (0.8, 0.92),
                      (0.9, 0.957)])
     """
-    quantile_bins = data["Numeric"].quantile(quantiles)
+    quantile_bins = data[feature].quantile(quantiles)
     discretized_features: t.Union[list, pd.DataFrame] = []
     cut_dict = c.OrderedDict()
     for quantile in quantiles:
@@ -204,10 +233,10 @@ def split_attribute(data, label, features) -> pd.DataFrame:
         Wind         0.940286  0.048127    0.985228    0.048849
         Temperature  0.940286  0.029223    1.556657    0.018773
     """
+    entropy = compute_entropy(get_feature_counts(data, label))
     entropy_stats = c.OrderedDict()
     for feature in features:
         feature_counts = get_feature_counts(data, label, feature)
-        entropy = compute_entropy(feature_counts)
         unweighted_entropies = compute_unweighted_entropies(feature_counts)
         expected_entropy = compute_expected_entropy(unweighted_entropies, feature_counts, feature)
         gain = compute_gain(entropy, expected_entropy)

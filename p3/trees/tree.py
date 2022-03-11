@@ -24,8 +24,9 @@ class Tree:
 
     def __init__(self):
         self.root: t.Union[DecisionNode, None] = None
-        self.nodes: c.defaultdict[str: DecisionNode, None] = c.defaultdict(lambda: None)
+        self.nodes = c.OrderedDict()
         self.height: t.Union[int, None] = None
+        self.node_counter = -1
 
     def __repr__(self):
         return f"Tree rooted at {self.root}."
@@ -38,22 +39,21 @@ class Tree:
         """
         if self.is_not_empty() and parent_node is None:
             raise TreeError("Parent node must be specified when tree is not empty.")
-        if node.name in self.nodes:
-            raise TreeError(f"Node {node.name} already exists in tree.")
 
         # Case when tree is empty
         if self.is_empty():
             self.root = node
-            node.height = 0
+            node.depth = 0
             self.height = 0
 
         # Case when tree is not empty
         else:
-            parent_node.children[node.name] = node
+            parent_node.children.append(node)
             node.parent = parent_node
-            node.height = node.parent.height + 1
+            node.depth = node.parent.depth + 1
 
-        self.nodes[node.name] = node
+        node.set_id(self.get_id())
+        self.nodes[node.id] = node
 
         # Update tree height
         self.set_height()
@@ -66,21 +66,36 @@ class Tree:
         if self.is_empty():
             return self.height
         height = 0
-        for node_name, node in self.nodes.items():
-            if node.height > height:
-                height = node.height
+        for node_id, node in self.nodes.items():
+            if node.depth > height:
+                height = node.depth
         self.height = height
         return self.height
 
-    def get_node(self, node_name: str) -> DecisionNode:
+    def get_id(self):
+        self.node_counter += 1
+        return self.node_counter
+
+    def get_node(self, node_identifier: t.Union[int, str]) -> DecisionNode:
         """
-        Get node by its name.
-        :param node_name:
-        :return: Node
+        Get node by its ID or name.
+        :param node_identifier: ID or name of node
+        return: Node
         """
-        if node_name not in self.nodes:
-            raise TreeError(f"Node {node_name} not in tree.")
-        return self.nodes[node_name]
+        if isinstance(node_identifier, int):
+            if node_identifier not in self.nodes:
+                raise TreeError(f"Node ID {node_identifier} not in tree.")
+            else:
+                return self.nodes[node_identifier]
+        elif isinstance(node_identifier, str):
+            nodes = [node for node_id, node in self.nodes.items() if node.name == node_identifier]
+            if len(nodes) == 0:
+                raise TreeError(f"Node {node_identifier} not in tree.")
+            elif len(nodes) > 1:
+                raise TreeError(f"Duplicate nodes encountered for {node_identifier}.")
+            return nodes[0]
+        else:
+            raise TypeError(f"Node is of type {type(node_identifier)} but must be str or int.")
 
     def is_empty(self) -> bool:
         """
@@ -96,7 +111,7 @@ class Tree:
         """
         return self.root is not None
 
-    def remove_node(self, node: t.Union[str, DecisionNode]) -> DecisionNode:
+    def remove_node(self, node: t.Union[str, int, DecisionNode]) -> DecisionNode:
         """
         Remove node from tree.
         :param node: Node to remove
@@ -104,9 +119,9 @@ class Tree:
         """
         if self.root is None:
             raise TreeError("Cannot remove a node from an empty tree.")
-        if isinstance(node, str):
+        if isinstance(node, (int, str)):
             node = self.get_node(node)
-        if node.height < self.height - 1:
+        if node.depth < self.height - 1:
             msg = "Can only remove 1) leaves or 2) nodes whose children are only leaves."
             raise NotImplementedError(msg)
 
@@ -125,7 +140,7 @@ class Tree:
             # Get node to promote
             _, promoted_node = self.select_promotion_node(node)
             # Decrement promoted node's height
-            promoted_node.height -= 1
+            promoted_node.depth -= 1
             if promoted_node.is_interior():
                 raise TreeError(f"Promoted node {promoted_node} is not a leaf but must be.")
             # Set node's children to empty dict

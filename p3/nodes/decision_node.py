@@ -17,7 +17,7 @@ from p3.algorithms.classification_entropy import compute_entropy, get_feature_co
 
 class DecisionNode(Node):
     """
-    Base node for singly-linked list.
+    Classification decision node.
     """
 
     def __init__(self, data: pd.DataFrame, label: str, features: list, data_classes: c.OrderedDict, name=None,
@@ -40,6 +40,8 @@ class DecisionNode(Node):
         self.data_classes = data_classes
         self.name = name
         self.parent = parent
+        # if children is None:
+        #     self.children = c.defaultdict(lambda: None)
         self.quantiles = quantiles
         if quantiles is None:
             self.quantiles = [0.25, 0.5, 0.75, 1]
@@ -47,6 +49,7 @@ class DecisionNode(Node):
         self.majority_label = None
         self.parent_category = None
         self.feature = None
+        self.rule = ""
 
     def get_majority_label(self):
         """
@@ -64,8 +67,27 @@ class DecisionNode(Node):
         self.entropy = compute_entropy(get_feature_counts(self.data, self.label))
         return self.entropy
 
-    def get_height(self):
-        if self.leaves:
-            for node in self.leaves:
-                if node.depth > self.height:
-                    self.height = node.depth
+    def make_rule(self) -> str:
+        if not self.is_root():
+            parent_rule = self.parent.rule
+            node_rule = f"({self.parent.feature}=='{self.parent_category}')"
+            if ("False" in node_rule) or ("True" in node_rule):
+                node_rule = node_rule.replace("'", "")
+            if self.parent.is_root():
+                self.rule = node_rule
+            else:
+                self.rule = f"{parent_rule} and {node_rule}"
+
+        return self.rule
+
+
+def breadth_first_print(node):
+    """
+    Print the tree beginning at node in breadth-first, left-to-right order.
+    param node: Node for which tree will be printed
+    """
+    space = "\t" * node.depth
+    antecedent = "" if node.is_root() else f"{space}{node.parent_category}==>"
+    print(f"{antecedent}{node.name}")
+    for child_node in node.children:
+        breadth_first_print(child_node)

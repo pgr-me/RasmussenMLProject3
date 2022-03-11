@@ -30,8 +30,8 @@ class Preprocessor:
         self.imputed_data: t.Union[pd.DataFrame, None] = None
         self.numeric_columns: list = None
         self.jenks_breaks: dict = {}
-        self.discretize_dict: c.defaultdict(lambda: {})
-        self.data_classes: t.Union[c.OrderedDict, None]
+        self.discretize_dict = c.defaultdict(lambda: {})
+        self.data_classes: t.Union[c.OrderedDict, None] = None
 
     def __repr__(self):
         return f"{self.dataset_name} Loader"
@@ -106,7 +106,7 @@ class Preprocessor:
         """
         mask = self.names_meta["data_type"].isin(["int", "float"])
         if exclude_index:
-            mask = mask & (self.names_meta["id"] == False)
+            mask = mask & (self.names_meta["id"] is False)
         self.numeric_columns = self.names_meta[mask].index.tolist()
         return self.numeric_columns
 
@@ -141,7 +141,8 @@ class Preprocessor:
         if numeric_cols == "default":
             numeric_cols = list(data.select_dtypes(np.number))
         for col in numeric_cols:
-            self.data[col] = self._impute(data[col], strategy=strategy)
+            is_ordinal = True if self.data_classes[feature] == "ordinal" else False
+            self.data[col] = self._impute(data[col], strategy, is_ordinal)
         return self.data
 
     def load(self) -> pd.DataFrame:
@@ -212,14 +213,15 @@ class Preprocessor:
         self.data = self.data.sample(frac=1, random_state=random_state)
         return self.data
 
-    def set_data_classes(self, features_only=True)->c.OrderedDict:
+    def set_data_classes(self, features_only=True) -> c.OrderedDict:
         """
         Set / update data classes attribute.
         :return: Set / updated data classes
         """
         self.data_classes = self.names_meta["data_class"].to_dict(into=c.OrderedDict)
+        exclude = self.names_meta[~self.names_meta["feature"]].index.values
         if features_only:
-            self.data_classes = c.OrderedDict((k, v) for k, v in self.data_classes.items() if k!=self.label)
+            self.data_classes = c.OrderedDict((k, v) for k, v in self.data_classes.items() if k not in exclude)
         return self.data_classes
 
     @staticmethod
@@ -258,7 +260,7 @@ class Preprocessor:
         return cuts.to_frame(), retbins
 
     @staticmethod
-    def _impute(feature: pd.Series, strategy: str) -> pd.Series:
+    def _impute(feature: pd.Series, strategy: str, is_ordinal: bool) -> pd.Series:
         """
         Impute missing feature values using the selected strategy.
         :param feature: Feature values
@@ -277,6 +279,8 @@ class Preprocessor:
         if strategy == "mean":
             feature = pd.to_numeric(feature, errors="coerce", downcast="float")
             feature = feature.fillna(feature.mean())
+            if is_ordinal:
+                feature = feature.round().astype(int)
         else:
             raise NotImplementedError(f"Strategy {strategy} is not implemented.")
 
