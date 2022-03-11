@@ -28,7 +28,7 @@ class Preprocessor:
         self.names_meta = pd.DataFrame(self.dataset_meta["names_meta"]).set_index("name")
         self.names = list(self.names_meta.index.values)
         self.imputed_data: t.Union[pd.DataFrame, None] = None
-        self.numeric_columns: list = None
+        self.numeric_columns: t.Union[list, None] = None
         self.jenks_breaks: dict = {}
         self.discretize_dict = c.defaultdict(lambda: {})
         self.data_classes: t.Union[c.OrderedDict, None] = None
@@ -141,7 +141,7 @@ class Preprocessor:
         if numeric_cols == "default":
             numeric_cols = list(data.select_dtypes(np.number))
         for col in numeric_cols:
-            is_ordinal = True if self.data_classes[feature] == "ordinal" else False
+            is_ordinal = True if self.data_classes[col] == "ordinal" else False
             self.data[col] = self._impute(data[col], strategy, is_ordinal)
         return self.data
 
@@ -231,7 +231,6 @@ class Preprocessor:
         :param series: Numeric series to discretize
         :param n_bins: Number of bins resulting from discretization
         :param binning: Binning strategy used for discretization
-        :param retbins: True to return bin definitions
         :return: Tuple of two elements: Discretized dataframe and bin definitions
         For the 'equal_frequency' binning strategy, retbins is None
         """

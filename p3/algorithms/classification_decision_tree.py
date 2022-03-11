@@ -16,75 +16,56 @@ import pandas as pd
 # Local imports
 from p3.nodes.decision_node import DecisionNode
 from p3.algorithms.classification_entropy import select_best_feature, split_attribute
+from p3.trees import Tree
 
 
-class ClassificationDecisionTree:
-    def __init__(self, root_node: DecisionNode, theta: float = 0.1, verbose: bool = False):
-        self.root_node = root_node
+class ClassificationDecisionTree(Tree):
+    def __init__(self, theta: float = 0.0, verbose: bool = False):
+        super().__init__()
         self.theta = theta
         self.verbose = verbose
         self.rules = None
+        self.subtrees = []
+        self.label = None
+        self.features = None
+        self.data_classes = None
+        self.id_counter = 0
 
-    def make_rules(self) -> dict:
-        """
-        Make decision rules from tree.
-        :return: Rules defined as eval statements keyed on label
-        """
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Iterate over each leaf & work back up to root, building conjunctive eval statement
-        rules_dict = c.defaultdict(lambda: [])
-        for leaf in self.root_node.leaves:
-            leaf_ = deepcopy(leaf)
-            majority_label = leaf_.majority_label
-            eval_strs = []
+    def __repr__(self):
+        return f"Tree rooted at {str(self.root)}."
 
-            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Work up to root and then break the while loop
-            while leaf_.parent is not None:
-                eval_str = f"({leaf_.parent.feature}=='{leaf_.parent_category}')"
-                if ("False" in eval_str) or ("True" in eval_str):
-                    eval_str = eval_str.replace("'", "")
-                eval_strs.append(eval_str)
-                leaf_ = leaf_.parent
-
-            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Handle case when eval string only has one term
-            if len(eval_strs) > 1:
-                eval_str = f"({' & '.join(eval_strs)})"
-
-            rules_dict[majority_label].append(eval_str)
-
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Build disjunctive rule sets from conjunctive eval strings
-        rules = {}
-        for label, rules_li in rules_dict.items():
-            rules[label] = " | ".join(rules_li)
-        self.rules = rules
-
-        return self.rules
+    def set_id_node(self, node):
+        node.id = self.id_counter
+        self.id_counter += 1
+        return node.id
 
     def make_tree(self):
-        self.make_tree_(self.root_node)
+        """
+        Build a decision tree from the root node down.
+        Wrapper function for make_tree_ method.
+        """
+        self.make_tree_(self.root)
 
     def make_tree_(self, node: DecisionNode):
         """
-        Make classification tree.
-        :param node:
-        :param theta:
-        :return:
+        Recursively build a decision subtree from the given node down.
+        :param node: Root of subtree
         """
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Compute node entropy
+        # Compute node entropy & get majority label for tuning / if node is leaf
         node.compute_entropy()
+        node.get_majority_label()
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Return if node entropy is less than threshold
-        if node.entropy < self.theta:
+        if node.entropy <= self.theta:
             # Create leaf labeled by majority class
-            node.get_majority_label()
             node.name = f"{node.depth}_{node.majority_label}"
             node.feature = node.majority_label
-            self.root_node.leaves.append(node)
+            self.root.leaves.append(node)
+            if self.verbose:
+                space = node.depth * "\t"
+                print(f"{space}{node.parent_category}==>{node.name}")
             return
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -96,7 +77,7 @@ class ClassificationDecisionTree:
         parent_categories = sorted(node.data[best_feature].unique())
         if self.verbose:
             space = node.depth * "\t"
-            print(f"{space}{node.name}")
+            print(f"{space}{node.parent_category}==>{node.name}")
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Iterate over each category of best feature
@@ -104,9 +85,97 @@ class ClassificationDecisionTree:
             mask = node.data[best_feature] == category
             data = node.data.copy()[mask]
             child_node = DecisionNode(data, self.label, self.features, self.data_classes)
-            child_node.parent = node
-            child_node.depth = child_node.parent.depth + 1
+
+            self.add_node(child_node, node)
             child_node.parent_category = category
-            child_node.assign_root(self.root_node)
-            node.children.append(child_node)
+            child_node.assign_root(self.root)
+            child_node.make_rule()
             self.make_tree_(child_node)
+
+    def populate_tree_metadata(self):
+        """
+        Populate label and feature attributes using corresponding root node attributes.
+        """
+        if self.is_not_empty():
+            self.label = self.root.label
+            self.features = self.root.features
+            self.data_classes = self.root.data_classes
+
+    def prune_node(self, node: DecisionNode) -> DecisionNode:
+        """
+        Prune node if its leaf score >= its subtree score.
+        :param node: Decision node to prune
+        :return: Pruned node
+        """
+        node.prune_children()
+        node.name = f"{node.depth}_{node.majority_label}"
+        self.root.get_children()
+        self.set_height()
+        return node
+
+    def prune_nodes(self, data: pd.DataFrame):
+        """
+        Prune interior nodes of tree.
+        :param data: Pruning dataset
+        """
+        for _, node in reversed(self.nodes.items()):
+            if node.is_interior() and not node.is_root():
+                subtree_score, leaf_score = self.score_node(node, data)
+                if self.test_node(subtree_score, leaf_score):
+                    self.prune_node(node)
+
+    def score_node(self, node: DecisionNode, data: pd.DataFrame) -> tuple:
+        """
+        Test node subtree's predictive power against that when it's a leaf.
+        :param node: Node to test
+        :param data: Pruning data
+        :param label: Label column
+        :return: Subtree and leaf scores
+        """
+        # Subset data: Get data at node
+        mask = data.eval(node.rule)
+        node_data = data.copy()[mask]
+
+        # Predict using subtree using node leaves
+        rules = tree.make_rules(node)
+        subtree_pred = pd.Series([None for x in range(len(node_data))], index=node_data.index, name="subtree_pred")
+        for label_val, rule in rules.items():
+            mask = node_data.eval(rule)
+            subtree_pred.loc[mask] = label_val
+        subtree_pred = (subtree_pred == node_data[self.label]).rename("subtree_pred")
+        subtree_score: pd.Series = subtree_pred.sum()
+
+        # Predict using majority class
+        leaf_pred = (node_data[node.label] == node.majority_label).rename("leaf_pred")
+        leaf_score = leaf_pred.sum()
+
+        return subtree_score, leaf_score
+
+    @staticmethod
+    def make_rules(node: DecisionNode) -> dict:
+        """
+        Make decision tree rules to be used for prediction.
+        :return:  Rules provided as eval statements keyed on label
+        """
+        node.get_leaves()
+        if node.is_leaf():
+            return {node.majority_label: node.rule}
+        rules_dict = c.defaultdict(lambda: [])
+        for leaf in node.leaves:
+            leaf_ = deepcopy(leaf)
+            rules_dict[leaf_.majority_label].append(f"({leaf_.rule})")
+
+        rules = {}
+        for label_val, conjunctive_rules in rules_dict.items():
+            rules[label_val] = " | ".join(conjunctive_rules)
+        return rules
+
+    @staticmethod
+    def test_node(subtree_score: int, leaf_score: int) -> bool:
+        """
+        Test if node should be pruned.
+        :param subtree_score: Score of node subtree
+        :param leaf_score: Score if node were leaf
+        :return: True if node should be pruned
+        """
+        return leaf_score >= subtree_score
