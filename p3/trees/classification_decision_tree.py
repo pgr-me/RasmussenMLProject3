@@ -27,7 +27,9 @@ class ClassificationDecisionTree(Tree):
         self.subtrees = []
         self.label = None
         self.features = None
+        self.data_classes = None
         self.id_counter = 0
+
 
     def __repr__(self):
         return f"Tree rooted at {str(self.root)}."
@@ -97,6 +99,7 @@ class ClassificationDecisionTree(Tree):
         if self.is_not_empty():
             self.label = self.root.label
             self.features = self.root.features
+            self.data_classes = self.root.data_classes
 
     def prune_node(self, node: DecisionNode) -> DecisionNode:
         """
@@ -126,7 +129,6 @@ class ClassificationDecisionTree(Tree):
         Test node subtree's predictive power against that when it's a leaf.
         :param node: Node to test
         :param data: Pruning data
-        :param label: Label column
         :return: Subtree and leaf scores
         """
         # Subset data: Get data at node
