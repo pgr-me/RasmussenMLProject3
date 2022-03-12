@@ -22,6 +22,8 @@ class Node:
         """
         if children is None:
             self.children = []
+        else:
+            self.children = children
         self.name = name
         self.parent = None
         self.depth = 0

@@ -6,7 +6,6 @@ This module tests the nodes module.
 """
 # Standard library imports
 import collections as c
-import typing as t
 
 # Third party imports
 import pandas as pd
@@ -46,14 +45,14 @@ def test_decision_node():
     assert isinstance(DecisionNode(df, label, features, data_classes), DecisionNode)
 
 
-def test_classification_decision_tree():
+def test_toy_classification_decision_tree():
     root = DecisionNode(df, label, features, data_classes)
     tree = ClassificationDecisionTree(verbose=True)
     tree.add_node(root)
     tree.populate_tree_metadata()
-    tree.make_tree()
+    tree.train()
     tree.rules = tree.make_rules(root)
 
 
 if __name__ == "__main__":
-    test_classification_decision_tree()
+    test_toy_classification_decision_tree()

@@ -81,6 +81,15 @@ class Preprocessor:
             self.discretize_dict[col]["retbins"] = retbins
         return self.data[list(discretize_dict.keys())]
 
+    def drop(self, labels=["sample_code_number"]):
+        """
+        Drop selected columns.
+        :param labels: Columns to drop
+        :return: Updated dataset
+        """
+        self.data.drop(axis=1, labels=labels, inplace=True, errors="ignore")
+        return self.data
+
     def dummy(self, columns: t.Union[list[str], str, None] = "default") -> pd.DataFrame:
         """
         Dummy categorical columns.
@@ -140,6 +149,7 @@ class Preprocessor:
         data = self.data.copy()
         if numeric_cols == "default":
             numeric_cols = list(data.select_dtypes(np.number))
+            numeric_cols = [x for x in numeric_cols if x in self.data_classes]
         for col in numeric_cols:
             is_ordinal = True if self.data_classes[col] == "ordinal" else False
             self.data[col] = self._impute(data[col], strategy, is_ordinal)

@@ -24,12 +24,12 @@ class ClassificationDecisionTree(Tree):
         self.theta = theta
         self.verbose = verbose
         self.rules = None
+        self.unpruned_rules = None
         self.subtrees = []
         self.label = None
         self.features = None
         self.data_classes = None
         self.id_counter = 0
-
 
     def __repr__(self):
         return f"Tree rooted at {str(self.root)}."
@@ -39,7 +39,7 @@ class ClassificationDecisionTree(Tree):
         self.id_counter += 1
         return node.id
 
-    def make_tree(self):
+    def train(self):
         """
         Build a decision tree from the root node down.
         Wrapper function for make_tree_ method.
@@ -124,6 +124,31 @@ class ClassificationDecisionTree(Tree):
                 if self.test_node(subtree_score, leaf_score):
                     self.prune_node(node)
 
+    def predict(self, data: pd.DataFrame, pruned=True) -> pd.Series:
+        """
+        Predict classes.
+        :param pruned: True to use pruned ruleset
+        :param data: Prediction dataset
+        :return: Predicted classes
+        """
+        predicted = pd.Series([None for x in range(len(data))], index=data.index)
+        if pruned:
+            rules = self.rules
+        else:
+            rules = self.unpruned_rules
+        for label, rule in rules.items():
+            mask = data.eval(rule, engine="python")
+            predicted.loc[mask] = label
+
+        return predicted
+
+    def score(self, pred: pd.Series, truth: pd.Series) -> float:
+        """
+        Score on the basis of accuracy.
+        :return: Accuracy score
+        """
+        return (pred == truth).sum() / len(truth)
+
     def score_node(self, node: DecisionNode, data: pd.DataFrame) -> tuple:
         """
         Test node subtree's predictive power against that when it's a leaf.
@@ -132,14 +157,14 @@ class ClassificationDecisionTree(Tree):
         :return: Subtree and leaf scores
         """
         # Subset data: Get data at node
-        mask = data.eval(node.rule)
+        mask = data.eval(node.rule, engine="python")
         node_data = data.copy()[mask]
 
         # Predict using subtree using node leaves
         rules = self.make_rules(node)
         subtree_pred = pd.Series([None for x in range(len(node_data))], index=node_data.index, name="subtree_pred")
         for label_val, rule in rules.items():
-            mask = node_data.eval(rule)
+            mask = node_data.eval(rule, engine="python")
             subtree_pred.loc[mask] = label_val
         subtree_pred = (subtree_pred == node_data[self.label]).rename("subtree_pred")
         subtree_score: pd.Series = subtree_pred.sum()

@@ -6,28 +6,29 @@ This module provides miscellaneous utility functions that support the core algor
 """
 # Standard library imports
 import collections as c
-import typing as t
 
 # Third party libraries
 import numpy as np
 import pandas as pd
 
+#from p3.preprocessing.tree_preprocessor import discretize_numeric
 
-def add_discretized_cols(data: pd.DataFrame, numeric_cols: list, quantiles: list) -> tuple:
-    """
-    Add candidate discretized columns to data.
-    :param data: Data of features and label
-    :param numeric_cols: Numeric columns to discretize
-    :param quantiles: List of percentiles to split on
-    :return: Dataframe with discretized columns
-    """
-    data_ = data.copy()
-    cuts_di = c.OrderedDict()
-    for numeric_col in numeric_cols:
-        disc_feat, cut_di = discretize_numeric(data_, numeric_col, quantiles)
-        cuts_di[numeric_col] = cut_di
-        data_ = pd.concat([data_, disc_feat], axis=1).drop(axis=1, labels=numeric_col)
-    return data_, cuts_di
+
+#def add_discretized_cols(data: pd.DataFrame, numeric_cols: list, quantiles: list) -> tuple:
+#    """
+#    Add candidate discretized columns to data.
+#    :param data: Data of features and label
+#    :param numeric_cols: Numeric columns to discretize
+#    :param quantiles: List of percentiles to split on
+#    :return: Dataframe with discretized columns
+#    """
+#    data_ = data.copy()
+#    cuts_di = c.OrderedDict()
+#    for numeric_col in numeric_cols:
+#        disc_feat, cut_di = discretize_numeric(data_, numeric_col, quantiles)
+#        cuts_di[numeric_col] = cut_di
+#        data_ = pd.concat([data_, disc_feat], axis=1).drop(axis=1, labels=numeric_col)
+#    return data_, cuts_di
 
 
 def compute_entropy(feature_counts: pd.Series) -> float:
@@ -72,7 +73,7 @@ def compute_gain_ratio(gain: float, split_info: float) -> float:
     :param split_info: Split information of feature (i.e., penalty term)
     :return: Gain ratio
     """
-    return gain / split_info
+    return 0 if gain == 0 else gain / split_info
 
 
 def compute_split_info(feature_counts: pd.Series, feature: str) -> float:
@@ -104,76 +105,6 @@ def compute_unweighted_entropies(feature_counts: pd.Series):
     pivot_counts["ct"] = pivot_counts.sum(axis=1)
     fracs = pivot_counts.iloc[:, :-1].divide(pivot_counts["ct"], axis=0)
     return fracs.multiply(np.log2(fracs)).fillna(0).abs().sum(axis=1)
-
-
-def discretize_ordinal(data, feature):
-    """
-    Create binary splits at each ordinal value.
-    :param data:
-    :param feature:
-    :return: Discrtized ordinal feature
-    Example output:
-                Ordinal_1 Ordinal_2 Ordinal_3 Ordinal_4
-        Example
-        0           right      left      left      left
-        1           right      left      left      left
-        2           right     right     right     right
-        3           right     right     right     right
-        4           right     right     right      left
-    """
-    discretized_features = []
-    feat_vals = sorted([int(x) for x in data[feature].unique()])
-
-    for feat_val in feat_vals[:-1]:  # We don't need the last, max ordinal value
-        col_name = f"{feature}_{feat_val}"
-        bins = [-float("inf"), feat_val, float("inf")]
-        labels = ["left", "right"]
-        cut, cut_val = pd.cut(data[feature], bins=bins, labels=labels, retbins=True)
-        cut.rename(col_name, inplace=True)
-        discretized_features.append(cut)
-    discretized_features = pd.concat(discretized_features, axis=1)
-    return discretized_features
-
-
-def discretize_numeric(data: pd.DataFrame, feature: str, quantiles: list) -> tuple:
-    """
-    Discretize numeric column so that it can be treated as a categorical column.
-    :param data: Data providing the numeric feature to be discretized
-    :param feature: Numeric feature to discretize
-    :param quantiles: List of quantiles to segment numeric data
-    :return: Two-class categorical column and dict mapping of quantile-to-cutoff value
-    Note: Two classes created at a time but same numeric feature could be reused elsewhere.
-    Note: The "left" class includes values less than or equal to cutoff value.
-    Example discretized_features output:
-                Numeric_0.1 Numeric_0.2 Numeric_0.4 Numeric_0.5 Numeric_0.6  \
-        Example
-        1              left        left        left        left        left
-        2             right        left        left        left        left
-        ...             ...         ...         ...         ...         ...
-        9             right       right       right        left        left
-        10            right       right       right       right       right
-    Example cut_dict output:
-        OrderedDict([(0.1, 0.065),
-                     (0.2, 0.16000000000000003),
-                     (0.4, 0.72),
-                     (0.5, 0.825),
-                     (0.6, 0.858),
-                     (0.8, 0.92),
-                     (0.9, 0.957)])
-    """
-    quantile_bins = data[feature].quantile(quantiles)
-    discretized_features: t.Union[list, pd.DataFrame] = []
-    cut_dict = c.OrderedDict()
-    for quantile in quantiles:
-        col_name = f"{feature}_{quantile}"
-        bins = [-float("inf"), quantile_bins.loc[quantile], float("inf")]
-        labels = ["left", "right"]
-        cut, cut_val = pd.cut(data[feature], bins=bins, labels=labels, retbins=True)
-        cut.rename(col_name, inplace=True)
-        discretized_features.append(cut)
-        cut_dict[quantile] = cut_val[1]
-    discretized_features = pd.concat(discretized_features, axis=1)
-    return discretized_features, cut_dict
 
 
 def get_feature_counts(data: pd.DataFrame, label, feature=None, ct_col="ct"):
