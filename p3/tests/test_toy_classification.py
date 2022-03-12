@@ -11,7 +11,7 @@ import collections as c
 import pandas as pd
 
 # Local imports
-from p3.nodes import DecisionNode
+from p3.nodes import ClassificationDecisionNode
 from p3.trees import ClassificationDecisionTree
 
 df = pd.DataFrame(
@@ -42,11 +42,11 @@ data_classes = c.OrderedDict([(x, "categorical") for x in features])
 
 
 def test_decision_node():
-    assert isinstance(DecisionNode(df, label, features, data_classes), DecisionNode)
+    assert isinstance(ClassificationDecisionNode(df, label, features, data_classes), ClassificationDecisionNode)
 
 
 def test_toy_classification_decision_tree():
-    root = DecisionNode(df, label, features, data_classes)
+    root = ClassificationDecisionNode(df, label, features, data_classes)
     tree = ClassificationDecisionTree(verbose=True)
     tree.add_node(root)
     tree.populate_tree_metadata()

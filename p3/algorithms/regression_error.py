@@ -12,6 +12,16 @@ import numpy as np
 import pandas as pd
 
 
+def compute_error(y_true: pd.Series, y_pred: pd.Series) -> float:
+    """
+    Compute mean squared error between y-true and y-prediction.
+    :param y_true: Series of true values
+    :param y_pred: Series of predicted values
+    :return: Mean squared error
+    """
+    return np.square(y_true - y_pred).sum() / len(y_true)
+
+
 def compute_entropy(feature_counts: pd.Series) -> float:
     """
     Compute entropy of a node.

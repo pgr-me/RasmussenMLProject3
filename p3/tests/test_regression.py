@@ -27,10 +27,10 @@ with open(src_dir / "data_catalog.json", "r") as file:
     data_catalog = json.load(file)
 with open(src_dir / "tuning_params.json", "r") as file:
     tuning_params = json.load(file)
-data_catalog = {k: v for k, v in data_catalog.items() if k in ["breast-cancer-wisconsin", "car", "house-votes-84"]}
+data_catalog = {k: v for k, v in data_catalog.items() if k in ["forestfires", "machine", "abalone"]}
 
 
-def test_classification_decision_tree():
+def test_regression_decision_tree():
     for dataset_name, dataset_meta in data_catalog.items():
         print(f"Dataset: {dataset_name}")
         preprocessor = TreePreprocessor(dataset_name, dataset_meta, src_dir)
@@ -77,4 +77,4 @@ def test_classification_decision_tree():
 
 
 if __name__ == "__main__":
-    test_classification_decision_tree()
+    test_regression_decision_tree()

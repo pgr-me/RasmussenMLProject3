@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 3, decision_node.py
+"""Peter Rasmussen, Programming Assignment 3, classification_decision_node.py
 
 This module provides base node class.
 

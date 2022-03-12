@@ -10,7 +10,7 @@ import collections as c
 import typing as t
 
 # Local imports
-from p3.nodes import DecisionNode
+from p3.nodes import ClassificationDecisionNode
 
 
 class TreeError(Exception):
@@ -23,7 +23,7 @@ class Tree:
     """
 
     def __init__(self):
-        self.root: t.Union[DecisionNode, None] = None
+        self.root: t.Union[ClassificationDecisionNode, None] = None
         self.nodes = c.OrderedDict()
         self.height: t.Union[int, None] = None
         self.node_counter = -1
@@ -31,7 +31,7 @@ class Tree:
     def __repr__(self):
         return f"Tree rooted at {self.root}."
 
-    def add_node(self, node: DecisionNode, parent_node: DecisionNode = None):
+    def add_node(self, node: ClassificationDecisionNode, parent_node: ClassificationDecisionNode = None):
         """
         Add node to tree.
         :param node: Node to add
@@ -76,7 +76,7 @@ class Tree:
         self.node_counter += 1
         return self.node_counter
 
-    def get_node(self, node_identifier: t.Union[int, str]) -> DecisionNode:
+    def get_node(self, node_identifier: t.Union[int, str]) -> ClassificationDecisionNode:
         """
         Get node by its ID or name.
         :param node_identifier: ID or name of node
@@ -111,7 +111,7 @@ class Tree:
         """
         return self.root is not None
 
-    def remove_node(self, node: t.Union[str, int, DecisionNode]) -> DecisionNode:
+    def remove_node(self, node: t.Union[str, int, ClassificationDecisionNode]) -> ClassificationDecisionNode:
         """
         Remove node from tree.
         :param node: Node to remove
@@ -178,7 +178,7 @@ class Tree:
         return self.height
 
     @staticmethod
-    def select_promotion_node(parent_node: DecisionNode) -> tuple:
+    def select_promotion_node(parent_node: ClassificationDecisionNode) -> tuple:
         """
         Select child node to promote as parent.
         :param parent_node: Parent node of promotion candidates

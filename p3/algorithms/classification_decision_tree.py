@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 # Local imports
-from p3.nodes.decision_node import DecisionNode
+from p3.nodes.classification_decision_node import ClassificationDecisionNode
 from p3.algorithms.classification_entropy import select_best_feature, split_attribute
 from p3.trees import Tree
 
@@ -46,7 +46,7 @@ class ClassificationDecisionTree(Tree):
         """
         self.make_tree_(self.root)
 
-    def make_tree_(self, node: DecisionNode):
+    def make_tree_(self, node: ClassificationDecisionNode):
         """
         Recursively build a decision subtree from the given node down.
         :param node: Root of subtree
@@ -84,7 +84,7 @@ class ClassificationDecisionTree(Tree):
         for category in parent_categories:
             mask = node.data[best_feature] == category
             data = node.data.copy()[mask]
-            child_node = DecisionNode(data, self.label, self.features, self.data_classes)
+            child_node = ClassificationDecisionNode(data, self.label, self.features, self.data_classes)
 
             self.add_node(child_node, node)
             child_node.parent_category = category
@@ -101,7 +101,7 @@ class ClassificationDecisionTree(Tree):
             self.features = self.root.features
             self.data_classes = self.root.data_classes
 
-    def prune_node(self, node: DecisionNode) -> DecisionNode:
+    def prune_node(self, node: ClassificationDecisionNode) -> ClassificationDecisionNode:
         """
         Prune node if its leaf score >= its subtree score.
         :param node: Decision node to prune
@@ -124,7 +124,7 @@ class ClassificationDecisionTree(Tree):
                 if self.test_node(subtree_score, leaf_score):
                     self.prune_node(node)
 
-    def score_node(self, node: DecisionNode, data: pd.DataFrame) -> tuple:
+    def score_node(self, node: ClassificationDecisionNode, data: pd.DataFrame) -> tuple:
         """
         Test node subtree's predictive power against that when it's a leaf.
         :param node: Node to test
@@ -152,7 +152,7 @@ class ClassificationDecisionTree(Tree):
         return subtree_score, leaf_score
 
     @staticmethod
-    def make_rules(node: DecisionNode) -> dict:
+    def make_rules(node: ClassificationDecisionNode) -> dict:
         """
         Make decision tree rules to be used for prediction.
         :return:  Rules provided as eval statements keyed on label

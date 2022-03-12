@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-"""Peter Rasmussen, Programming Assignment 3, tree.py
+"""Peter Rasmussen, Programming Assignment 3, utils.py
 
-This module provides the base tree class and the tree error exception class.
+This module provides miscellaneous utility functions that support the core algorithms of this program.
 
 """
-
 # Standard library imports
 import collections as c
 from copy import deepcopy
+import typing as t
 
-# Third party imports
+# Third party libraries
+import numpy as np
 import pandas as pd
 
 # Local imports
-from p3.nodes import ClassificationDecisionNode
-from p3.trees.tree import Tree
+from p3.nodes.classification_decision_node import ClassificationDecisionNode
 from p3.algorithms.classification_entropy import select_best_feature, split_attribute
+from p3.trees import Tree
 
 
-class ClassificationDecisionTree(Tree):
+class RegressionDecisionTree(Tree):
     def __init__(self, theta: float = 0.0, verbose: bool = False):
         super().__init__()
         self.theta = theta
         self.verbose = verbose
         self.rules = None
-        self.unpruned_rules = None
         self.subtrees = []
         self.label = None
         self.features = None
@@ -39,7 +39,7 @@ class ClassificationDecisionTree(Tree):
         self.id_counter += 1
         return node.id
 
-    def train(self):
+    def make_tree(self):
         """
         Build a decision tree from the root node down.
         Wrapper function for make_tree_ method.
@@ -124,47 +124,23 @@ class ClassificationDecisionTree(Tree):
                 if self.test_node(subtree_score, leaf_score):
                     self.prune_node(node)
 
-    def predict(self, data: pd.DataFrame, pruned=True) -> pd.Series:
-        """
-        Predict classes.
-        :param pruned: True to use pruned ruleset
-        :param data: Prediction dataset
-        :return: Predicted classes
-        """
-        predicted = pd.Series([None for x in range(len(data))], index=data.index)
-        if pruned:
-            rules = self.rules
-        else:
-            rules = self.unpruned_rules
-        for label, rule in rules.items():
-            mask = data.eval(rule, engine="python")
-            predicted.loc[mask] = label
-
-        return predicted
-
-    def score(self, pred: pd.Series, truth: pd.Series) -> float:
-        """
-        Score on the basis of accuracy.
-        :return: Accuracy score
-        """
-        return (pred == truth).sum() / len(truth)
-
     def score_node(self, node: ClassificationDecisionNode, data: pd.DataFrame) -> tuple:
         """
         Test node subtree's predictive power against that when it's a leaf.
         :param node: Node to test
         :param data: Pruning data
+        :param label: Label column
         :return: Subtree and leaf scores
         """
         # Subset data: Get data at node
-        mask = data.eval(node.rule, engine="python")
+        mask = data.eval(node.rule)
         node_data = data.copy()[mask]
 
         # Predict using subtree using node leaves
-        rules = self.make_rules(node)
+        rules = tree.make_rules(node)
         subtree_pred = pd.Series([None for x in range(len(node_data))], index=node_data.index, name="subtree_pred")
         for label_val, rule in rules.items():
-            mask = node_data.eval(rule, engine="python")
+            mask = node_data.eval(rule)
             subtree_pred.loc[mask] = label_val
         subtree_pred = (subtree_pred == node_data[self.label]).rename("subtree_pred")
         subtree_score: pd.Series = subtree_pred.sum()
