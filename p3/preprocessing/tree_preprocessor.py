@@ -43,14 +43,43 @@ class TreePreprocessor(Preprocessor):
                 else:
                     disc_feats, cut_dict = self.discretize_numeric(data, feature, quantiles)
                     cut_dicts[feature] = cut_dict
-                    raise NotImplementedError(f"{feature} is numeric.")
-
                 data = data.drop(axis=1, labels=feature).join(disc_feats)
         self.data = data
         self.cut_dicts = cut_dicts
         self.features = [x for x in self.data if x != self.label]
         self.data_classes = {k: "categorical" for k in self.features}
-        return self.data
+        return self.data, self.cut_dicts
+
+
+    def discretize_nontrain(self, nontrain_data: pd.DataFrame)->pd.DataFrame:
+        """
+        Apply cuts derived from training set to non-training data.
+        :param nontrain_data: Tuning / pruning / validation data
+        :return: Discretized nontrain data
+        """
+        # Apply training splits to numeric data
+        for numeric_feat, cuts in self.cut_dicts.items():
+            for cut in cuts:
+                cut_val = float(cut.replace("_", "."))
+                col = f"{numeric_feat}__{cut}"
+                nontrain_data[col] = "left"
+                mask = nontrain_data[numeric_feat] > cut_val
+                nontrain_data.loc[mask, col] = "right"
+            nontrain_data.drop(axis=1, labels=numeric_feat, inplace=True)
+
+        # Apply training splits to ordinal data
+        mask = self.names_meta["data_class"] == "ordinal"
+        ordinal_feats = self.names_meta[mask].index.values.tolist()
+        for ordinal_feat in ordinal_feats:
+            train_cols = self.data.filter(regex=f"^{ordinal_feat}_.+")
+            for train_col in train_cols:
+                cutoff_val = int(train_col.split("__")[-1])
+                nontrain_data[train_col] = "left"
+                mask = nontrain_data[ordinal_feat] > cutoff_val
+                nontrain_data.loc[mask, train_col] = "right"
+            nontrain_data = nontrain_data.drop(axis=1, labels=ordinal_feat)
+
+        return nontrain_data
 
     @staticmethod
     def discretize_ordinal(data, feature) -> pd.DataFrame:
@@ -72,7 +101,7 @@ class TreePreprocessor(Preprocessor):
         feat_vals = sorted([int(x) for x in data[feature].unique()])
 
         for feat_val in feat_vals[:-1]:  # We don't need the last, max ordinal value
-            col_name = f"{feature}_{feat_val}"
+            col_name = f"{feature}__{feat_val}"
             bins = [-float("inf"), feat_val, float("inf")]
             labels = ["left", "right"]
             cut, cut_val = pd.cut(data[feature], bins=bins, labels=labels, retbins=True)
@@ -112,12 +141,12 @@ class TreePreprocessor(Preprocessor):
         discretized_features: t.Union[list, pd.DataFrame] = []
         cut_dict = c.OrderedDict()
         for quantile in quantiles:
-            col_name = f"{feature}_{quantile}"
+            col_name = f"{feature}__{quantile}".replace(".", "_")
             bins = [-float("inf"), quantile_bins.loc[quantile], float("inf")]
             labels = ["left", "right"]
             cut, cut_val = pd.cut(data[feature], bins=bins, labels=labels, retbins=True)
             cut.rename(col_name, inplace=True)
             discretized_features.append(cut)
-            cut_dict[quantile] = cut_val[1]
+            cut_dict[str(quantile).replace(".", "_")] = cut_val[1]
         discretized_features = pd.concat(discretized_features, axis=1)
         return discretized_features, cut_dict

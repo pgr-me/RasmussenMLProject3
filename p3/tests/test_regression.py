@@ -6,13 +6,14 @@ This module tests the nodes module.
 """
 # Standard library imports
 import collections as c
+from copy import deepcopy
 import json
 from pathlib import Path
 import warnings
 
 # Local imports
-from p3.nodes import ClassificationDecisionNode
-from p3.trees import ClassificationDecisionTree
+from p3.nodes import RegressionDecisionNode
+from p3.trees import RegressionDecisionTree
 from p3.preprocessing.tree_preprocessor import TreePreprocessor
 
 warnings.filterwarnings('ignore')
@@ -42,38 +43,34 @@ def test_regression_decision_tree():
         preprocessor.impute()
         preprocessor.drop()
         preprocessor.shuffle()
+        testing_data = preprocessor.data.copy().sample(frac=0.1)
         preprocessor.discretize()
+        testing_data = preprocessor.discretize_nontrain(testing_data)
+        data = preprocessor.data.copy().sample(frac=0.1)
 
         # Extract label, features, and data classes
         label = preprocessor.label
         data_classes = preprocessor.data_classes
         features = preprocessor.features
 
-        data = preprocessor.data.copy().sample(frac=0.2)
-        pruning_data = preprocessor.data.copy().sample(frac=0.2)
-
         # Initialize root node and tree
-        root = ClassificationDecisionNode(data, preprocessor.label, features, data_classes)
-        tree = ClassificationDecisionTree(verbose=True)
+        root = RegressionDecisionNode(data, preprocessor.label, features, data_classes)
+        tree = RegressionDecisionTree(verbose=True)
         tree.add_node(root)
         tree.populate_tree_metadata()
 
+        print('yes')
+
+
         # Build decision tree
         tree.train()
-        tree.rules = tree.unpruned_rules = tree.make_rules(root)
-
-        # Prune nodes
-        tree.prune_nodes(pruning_data)
-        tree.rules = tree.make_rules(root)
 
         # Predict
-        pruned_pred = tree.predict(preprocessor.data)
-        unpruned_pred = tree.predict(preprocessor.data, pruned=False)
+        pred = tree.predict(testing_data)
 
         # Score
-        pruned_score = tree.score(pruned_pred, preprocessor.data[label])
-        unpruned_score = tree.score(unpruned_pred, preprocessor.data[label])
-        print(f"{dataset_name}: pruned={pruned_score}, unpruned={unpruned_score}")
+        score = tree.score(pred, testing_data[label])
+        print(f"{dataset_name}: score={score}")
 
 
 if __name__ == "__main__":

@@ -81,12 +81,14 @@ class Preprocessor:
             self.discretize_dict[col]["retbins"] = retbins
         return self.data[list(discretize_dict.keys())]
 
-    def drop(self, labels=["sample_code_number"]):
+    def drop(self, labels: t.Union[list, None] = None) -> pd.DataFrame:
         """
         Drop selected columns.
         :param labels: Columns to drop
         :return: Updated dataset
         """
+        if labels is None:
+            labels = ["sample_code_number", "model_name"]
         self.data.drop(axis=1, labels=labels, inplace=True, errors="ignore")
         return self.data
 
@@ -185,7 +187,11 @@ class Preprocessor:
         # Perform log transformations
         if log_transforms:
             for col in log_transforms:
-                self.data[col] = np.log(self.data[col])
+                min_val = self.data[col].min()
+                if min_val > 0:
+                    self.data[col] = np.log(self.data[col])
+                elif min_val == 0:
+                    self.data[col] = np.log(self.data[col] + 1)
         return self.data
 
     def make_folds(self, k_folds: int):
