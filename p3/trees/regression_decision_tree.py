@@ -84,9 +84,6 @@ class RegressionDecisionTree(Tree):
         node.name = f"{node.depth}_{best_feature}"
         node.feature = best_feature
         self.unused_features.remove(best_feature)
-        if isinstance(branch_stats, pd.Series):
-            import ipdb;
-            ipdb.set_trace()
         branches = branch_stats.loc[best_feature].set_index("branch_cat")
         if self.verbose:
             space = node.depth * "\t"

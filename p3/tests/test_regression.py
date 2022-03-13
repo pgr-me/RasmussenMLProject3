@@ -43,10 +43,10 @@ def test_regression_decision_tree():
         preprocessor.impute()
         preprocessor.drop()
         preprocessor.shuffle()
-        testing_data = preprocessor.data.copy().sample(frac=0.1)
+        testing_data = preprocessor.data.copy().sample(frac=0.2, random_state=777)
         preprocessor.discretize()
         testing_data = preprocessor.discretize_nontrain(testing_data)
-        data = preprocessor.data.copy().sample(frac=0.1)
+        data = preprocessor.data.copy().sample(frac=0.8, random_state=777)
 
         # Extract label, features, and data classes
         label = preprocessor.label
@@ -58,9 +58,6 @@ def test_regression_decision_tree():
         tree = RegressionDecisionTree(verbose=True)
         tree.add_node(root)
         tree.populate_tree_metadata()
-
-        print('yes')
-
 
         # Build decision tree
         tree.train()
