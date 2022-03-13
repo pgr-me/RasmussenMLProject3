@@ -171,6 +171,8 @@ class ClassificationDecisionTree(Tree):
 
         # Predict using majority class
         leaf_pred = (node_data[node.label] == node.majority_label).rename("leaf_pred")
+
+        # Count up number of correct predictions
         leaf_score = leaf_pred.sum()
 
         return subtree_score, leaf_score

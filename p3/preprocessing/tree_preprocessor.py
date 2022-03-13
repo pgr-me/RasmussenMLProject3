@@ -19,6 +19,7 @@ from p3.preprocessing.preprocessor import Preprocessor
 
 QUANTILES = [0.1, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
+
 class TreePreprocessor(Preprocessor):
     def __init__(self, dataset_name: str, dataset_meta: dict, data_dir: Path, quantiles=QUANTILES):
         super().__init__(dataset_name, dataset_meta, data_dir)
@@ -50,8 +51,7 @@ class TreePreprocessor(Preprocessor):
         self.data_classes = {k: "categorical" for k in self.features}
         return self.data, self.cut_dicts
 
-
-    def discretize_nontrain(self, nontrain_data: pd.DataFrame)->pd.DataFrame:
+    def discretize_nontrain(self, nontrain_data: pd.DataFrame) -> pd.DataFrame:
         """
         Apply cuts derived from training set to non-training data.
         :param nontrain_data: Tuning / pruning / validation data
@@ -69,7 +69,7 @@ class TreePreprocessor(Preprocessor):
 
         # Apply training splits to ordinal data
         mask = self.names_meta["data_class"] == "ordinal"
-        ordinal_feats = self.names_meta[mask].index.values.tolist()
+        ordinal_feats = [x for x in self.names_meta[mask].index if (x not in self.drops) and (x != self.label)]
         for ordinal_feat in ordinal_feats:
             train_cols = self.data.filter(regex=f"^{ordinal_feat}_.+")
             for train_col in train_cols:

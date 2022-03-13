@@ -5,12 +5,15 @@ This module provides functions to split data into K folds and split training-val
 validation sets.
 
 """
+# Standard library imports
+import typing as t
+
 # Third party libraries
 import pandas as pd
 
 
-def make_splits(data: pd.DataFrame, problem_class: str, label_col: str, k_folds: int,
-                val_frac: float = None) -> pd.DataFrame:
+def make_splits(data: pd.DataFrame, problem_class: str, label_col: str, k_folds: t.Union[int, None],
+                val_frac: t.Union[float, None] = None) -> pd.DataFrame:
     """
     Assign each observation to a fold or split a train-validation set into train & validation sets.
     :param data: Dataframe to split

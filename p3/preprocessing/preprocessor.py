@@ -32,6 +32,7 @@ class Preprocessor:
         self.jenks_breaks: dict = {}
         self.discretize_dict = c.defaultdict(lambda: {})
         self.data_classes: t.Union[c.OrderedDict, None] = None
+        self.drops = ["sample_code_number", "model_name"]
 
     def __repr__(self):
         return f"{self.dataset_name} Loader"
@@ -88,7 +89,7 @@ class Preprocessor:
         :return: Updated dataset
         """
         if labels is None:
-            labels = ["sample_code_number", "model_name"]
+            labels = self.drops
         self.data.drop(axis=1, labels=labels, inplace=True, errors="ignore")
         return self.data
 
