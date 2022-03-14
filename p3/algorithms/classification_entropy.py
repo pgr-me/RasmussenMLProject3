@@ -114,6 +114,24 @@ def get_feature_counts(data: pd.DataFrame, label, feature=None, ct_col="ct"):
     return feature_counts.groupby(index)[ct_col].sum().sort_index()
 
 
+def get_feature_importances(tree, dataset_name: str, fold: int, pruned: bool) -> pd.DataFrame:
+    """
+    Obtain list and associated metadata of nodes by feature importance.
+    :param tree: Decision tree
+    :return: Feature importances
+    """
+    feat_imp_li = [[k, v.__str__(), v.entropy] for k, v in tree.nodes.items()]
+    feat_imp = pd.DataFrame(feat_imp_li, columns=["id", "name", "entropy"])
+    interior_mask = feat_imp["name"].str.contains("__")
+    feat_imp = feat_imp[interior_mask]
+    feat_imp["depth"] = feat_imp["name"].str.split("_").str[0].astype(int)
+    feat_imp["feature"] = feat_imp["name"].str.split("_").str[1]
+    feat_imp["dataset_name"] = dataset_name
+    feat_imp["fold"] = fold
+    feat_imp["pruned"] = pruned
+    return feat_imp.set_index(["dataset_name", "fold", "pruned"]).reset_index()
+
+
 def pivot_feature_counts(feature_counts):
     """
     Make a pivot table of feature counts.

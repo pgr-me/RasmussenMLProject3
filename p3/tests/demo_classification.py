@@ -32,7 +32,7 @@ src_dir = repo_dir / "data"
 # Load data catalog and tuning params
 with open(src_dir / "data_catalog.json", "r") as file:
     data_catalog = json.load(file)
-data_catalog = {k: v for k, v in data_catalog.items() if k in ["breast-cancer-wisconsin", "car", "house-votes-84"]}
+data_catalog = {k: v for k, v in data_catalog.items() if k in ["house-votes-84"]}
 #data_catalog = {k: v for k, v in data_catalog.items() if k in ["car"]}
 k_folds = 5
 val_frac = 0.2
@@ -101,6 +101,7 @@ def test_classification_decision_tree():
             tree.add_node(root)
             tree.populate_tree_metadata()
 
+            print("Show sample classification tree being made to prune a subtree")
             # Build decision tree
             tree.train()
             tree.set_height()
@@ -118,10 +119,13 @@ def test_classification_decision_tree():
             tree.rules = tree.make_rules(root)
 
             # Predict
+            print("Show sample classification tree with and without pruning.")
             pruned_pred = tree.predict(test)
             unpruned_pred = tree.predict(test, pruned=False)
+            print("Show sample classification tree with and without pruning.")
 
             # Score
+            print("Show outputs for classification for one fold.")
             pruned_score = tree.score(pruned_pred, test[label])
             unpruned_score = tree.score(unpruned_pred, test[label])
             results.append(dict(problem_class=problem_class, dataset_name=dataset_name, fold=fold,
@@ -132,13 +136,13 @@ def test_classification_decision_tree():
 
             feature_importances.append(pruned_feat_imps)
             feature_importances.append(unpruned_feat_imps)
-
+            print("Show outputs for classification for one fold")
     results = pd.DataFrame(results)
     feature_importances = pd.concat(feature_importances)
 
     # Save outputs
-    results.to_csv("classification_results.csv")
-    feature_importances.to_csv("feature_importances.csv")
+    results.to_csv("demo_classification_results.csv")
+    feature_importances.to_csv("demo_feature_importances.csv")
 
 
 if __name__ == "__main__":

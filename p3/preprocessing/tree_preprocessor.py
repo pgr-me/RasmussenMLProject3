@@ -27,7 +27,7 @@ class TreePreprocessor(Preprocessor):
         self.quantiles = quantiles
         self.cut_dicts = {}
 
-    def discretize(self, quantiles=None) -> pd.DataFrame:
+    def discretize(self, quantiles=None) -> tuple:
         """
         Discretize each numeric column into a set of binary categories.
         :return: Discretized numeric data
@@ -51,20 +51,24 @@ class TreePreprocessor(Preprocessor):
         self.data_classes = {k: "categorical" for k in self.features}
         return self.data, self.cut_dicts
 
-    def discretize_nontrain(self, nontrain_data: pd.DataFrame) -> pd.DataFrame:
+    def discretize_nontrain(self, nontrain_data_: pd.DataFrame) -> pd.DataFrame:
         """
         Apply cuts derived from training set to non-training data.
         :param nontrain_data: Tuning / pruning / validation data
         :return: Discretized nontrain data
         """
+        nontrain_data = nontrain_data_.copy()
         # Apply training splits to numeric data
         for numeric_feat, cuts in self.cut_dicts.items():
             for cut in cuts:
                 cut_val = float(cut.replace("_", "."))
                 col = f"{numeric_feat}__{cut}"
-                nontrain_data[col] = "left"
-                mask = nontrain_data[numeric_feat] > cut_val
-                nontrain_data.loc[mask, col] = "right"
+                try:
+                    nontrain_data[col] = "left"
+                    mask = nontrain_data[numeric_feat] > cut_val
+                    nontrain_data.loc[mask, col] = "right"
+                except KeyError:
+                    nontrain_data[col] = "left"
             nontrain_data.drop(axis=1, labels=numeric_feat, inplace=True)
 
         # Apply training splits to ordinal data

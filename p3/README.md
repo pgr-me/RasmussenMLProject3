@@ -1,12 +1,11 @@
 # Peter Rasmussen, Programming Assignment 3
 
-This Python 3 program trains the k nearest neighbor predictor across six datasets, using accuracy for the classification data and normalized interquantile root mean squared error for the regression data.
+This Python 3 program trains the decision tree predictor across six datasets, using accuracy for the classification data and mean squared error for the regression data.
 
 ## Getting Started
 
 The package is designed to be executed as a module from the command line. The user must specify the
- output directory as illustrated below. The PRasmussenAlgospa2/resources
-directory provides example output files - which echo the dynamically-generated input - for the user.
+ output directory as illustrated below. 
 
 ```shell
 python -m path/to/p3  -i path/to/in_dir -o path/to/out_dir/ -k <folds> -v <val frac> -r <random state>
@@ -14,7 +13,7 @@ python -m path/to/p3  -i path/to/in_dir -o path/to/out_dir/ -k <folds> -v <val f
 
 As an example:
 ```shell
-python -m path/to/p3  -i path/to/in_dir -o path/to/out_dir/ -k 5 -v 0.1 -r 777
+python -m path/to/p3  -i path/to/in_dir -o path/to/out_dir/ -k 5 -v 0.2 -r 777
 ```
 
 A summary of the command line arguments is below.
@@ -33,25 +32,25 @@ Optional arguments:
 
 ## Key parts of program
 * run.py: Executes data loading, preprocessing, training, socring, and output creation.
-* preprocessor.py: Preprocesses data: loading, imputation, discretization, and fold assignment.
+* preprocessor.py: Preprocesses data: loading, imputation, and numeric data handling.
 
-* knn_classifier.py
-  * Employs majority rule to predict
+* classification_decision_tree.py
+  * Employs gain ratio to split attributes at each node
   * Scored on the basis of accuracy
-* knn_regressor.py
-  * Uses a gaussian kernel to weight nearest neighbor label values
-  * Regression datasets are scored on the basis of normalized interquantile root mean squared error
+* regression_decision_tree.py
+  * Employs mean squared error to split attributes at each node
+  * Scored on the basis of mean squared error
 
 ## Features
 
 * Performance metrics for each run for each dataset.
 * Support for edited and condensed mode.
-* Outputs provided as three files: 1) testing results, tuning results, and summary scores.
+* Outputs provided as CSV files.
 * Control over number of folds, validation fraction, and randomization.
 
 ## Output Files
 
-See the ```testing_results.csv```, ```tuning_results.csv```, and summary.csv``` files in the ```data/``` directory.
+See the outputs in the data/ folder or whichever folder the user specifies for outputs.
 
 ## Licensing
 

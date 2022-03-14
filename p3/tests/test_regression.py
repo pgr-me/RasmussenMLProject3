@@ -26,8 +26,6 @@ src_dir = repo_dir / "data"
 # Load data catalog and tuning params
 with open(src_dir / "data_catalog.json", "r") as file:
     data_catalog = json.load(file)
-with open(src_dir / "tuning_params.json", "r") as file:
-    tuning_params = json.load(file)
 data_catalog = {k: v for k, v in data_catalog.items() if k in ["forestfires", "machine", "abalone"]}
 
 

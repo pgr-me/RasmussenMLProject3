@@ -25,7 +25,7 @@ def compute_error(y_true: pd.Series, y_pred: pd.Series) -> float:
 def make_thetas(data: pd.DataFrame, label: str, rel_err_li: list) -> dict:
     thetas = {}
     for rel_err in rel_err_li:
-        thetas[rel_err] = data[label].abs() * (1 + rel_err)
+        thetas[rel_err] = np.square(data[label].abs() - data[label].abs() * (1 + rel_err)).sum() / len(data)
     return thetas
 
 

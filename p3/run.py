@@ -1,27 +1,36 @@
 """Peter Rasmussen, Programming Assignment 3, run.py
 
-The run function ingests user inputs to train majority predictors on six different datasets.
+The run function ingests user inputs to train decision tree predictors on six different datasets.
 
 Outputs are saved to the user-specified directory.
 
 """
 
 # Standard library imports
-from collections import defaultdict
+from copy import deepcopy
 import json
 import logging
 import os
 from pathlib import Path
+import typing as t
+import warnings
 
 # Third party imports
-import numpy as np
 import pandas as pd
 
 # Local imports
-from p3.preprocessing import Preprocessor, get_standardization_cols, get_standardization_params, standardize
-#from p3.algorithms import KNNClassifier, KNNRegressor
+from p3.algorithms.classification_entropy import get_feature_importances
+from p3.algorithms.regression_error import make_thetas
+from p3.nodes import ClassificationDecisionNode
+from p3.nodes import RegressionDecisionNode
+from p3.preprocessing.tree_preprocessor import TreePreprocessor
 from p3.preprocessing.split import make_splits
+from p3.trees import ClassificationDecisionTree
+from p3.trees import RegressionDecisionTree
 
+warnings.filterwarnings('ignore')
+
+THETAS = [0, 0.02, 0.04, 0.06]
 
 def run(
         src_dir: Path,
@@ -41,244 +50,181 @@ def run(
     """
     dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
     log_path = dir_path / "p3.log"
-    with open(src_dir / "discretize.json") as file:
-        discretize_dicts = json.load(file)
-    discretize_dicts = defaultdict(lambda: {}, discretize_dicts)
     log_format = "%(asctime)s - %(levelname)s - %(message)s"
     logging.basicConfig(filename=log_path, level=logging.DEBUG, format=log_format)
 
     logging.debug(f"Begin: src_dir={src_dir.name}, dst_dir={dst_dir.name}, seed={random_state}.")
 
-    # Load data catalog and tuning params
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Load data catalog
     with open(src_dir / "data_catalog.json", "r") as file:
         data_catalog = json.load(file)
-    with open(src_dir / "tuning_params.json", "r") as file:
-        tuning_params = json.load(file)
 
-    # Initialize tuning results and output lists
-    # tuning_results = []
-    output = []
-    best_params = []
-    testing_results = []
-
-    # Loop over each dataset and its metadata using the data_catalog
-    tuning_results_li = []
-
-    # Create randomized grid of parameters
-    runs = {}
-    for i in range(4):
-        runs[i] = {"k": np.random.choice(tuning_params["ks"]),
-                   "sigma": np.random.choice(tuning_params["sigmas"]),
-                   "eps": np.random.choice(tuning_params["epsilons"])}
-    # data_catalog = {k: v for k, v in data_catalog.items() if k=="car"}
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Iterate over each dataset
+    classification_results: t.Union[list, pd.DataFrame] = []
+    feature_importances: t.Union[list, pd.DataFrame] = []
+    regression_results: t.Union[list, pd.DataFrame] = []
+    #data_catalog = {k: v for k, v in data_catalog.items() if k in ["breast-cancer-wisconsin", "car", "house-votes-84"]}
+    data_catalog = {k: v for k, v in data_catalog.items() if k in ["forestfires", "machine", "abalone"]}
     for dataset_name, dataset_meta in data_catalog.items():
 
-        # if dataset_name == "abalone":
         print(f"Dataset: {dataset_name}")
-        tuning_results = []
+        logging.debug(f"Dataset: {dataset_name}")
 
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        logging.debug(f"Load and process dataset {dataset_name}.")
-
-        # Load data: Set column names, data types, and replace values
-        preprocessor = Preprocessor(dataset_name, dataset_meta, src_dir)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Preprocess data
+        preprocessor = TreePreprocessor(dataset_name, dataset_meta, src_dir)
         preprocessor.load()
-
-        # Identify which columns are features, which is the label, and any ID columns
         preprocessor.identify_features_label_id()
-
-        # Replace values: Ordinal strings (lower, higher) replace with numeric values
         preprocessor.replace()
-
-        # Log transform indicated columns (default is to take selected columns from dataset_meta)
         preprocessor.log_transform()
-
-        # Impute missing values
+        preprocessor.set_data_classes()
         preprocessor.impute()
+        preprocessor.drop()
+        preprocessor.shuffle()
 
-        # Dummy categorical columns
-        preprocessor.dummy()
+        # Extract label and data classes
+        label = preprocessor.label
+        problem_class = dataset_meta["problem_class"]
 
-        # Discretize indicated columns
-        preprocessor.discretize(discretize_dicts[dataset_name])
-
-        # Randomize the order of the data
-        preprocessor.shuffle(random_state=random_state)
-
-        # Extract dataframe from preprocessor object
+        # Split data into train-test and validation sets
         data = preprocessor.data.copy()
+        val_assignments = make_splits(data.sample(frac=1, random_state=random_state + 1), problem_class, label,
+                                      k_folds=None, val_frac=val_frac)
+        fold_assignments = make_splits(data, problem_class, label, k_folds=k_folds, val_frac=None)
+        assignments = fold_assignments.join(val_assignments).rename(columns={"train": "train_test"})
 
-        # Define each column as a feature, label, or index
-        feature_cols = preprocessor.features
-        label_col = preprocessor.label
-        problem_class = dataset_meta["problem_class"]  # regression or classification
-        index = preprocessor.index
-        if problem_class == "classification":
-            data[label_col] = data[label_col].astype(int)
+        # Break off validation from train-test
+        val_ix = assignments.copy().query("train_test==0").drop(axis=1, labels=["fold", "train_test"])
+        val_data = val_ix.join(data)
+        train_test_ix = assignments.copy().query("train_test==1").drop(axis=1, labels="train_test")
+        train_test = train_test_ix.join(data)
 
-        # Split off validation samples from train / test
-        splits = make_splits(data, problem_class, label_col, k_folds=None, val_frac=val_frac)
-        mask = splits["train"] == 0
-        val = splits.copy()[mask].join(data).drop(axis=1, labels="train")
-        train_test = splits.copy()[~mask].join(data).drop(axis=1, labels="train")
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Iterate over each fold and save results
+        # for fold in range(2, k_folds + 1):
+        for fold in list(range(1, k_folds + 1)):
+            print(fold)
+            test_mask = train_test["fold"] == fold
+            test_data = train_test.copy()[test_mask].drop(axis=1, labels="fold")
+            train_data = train_test.copy()[~test_mask].drop(axis=1, labels="fold")
 
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        logging.debug(f"Tune {dataset_name}.")
+            # Instantiate a copy of the preprocessor specific to this fold
+            te_tr_preprocessor = deepcopy(preprocessor)
+            te_tr_preprocessor.data = train_data
 
-        # Make folds for validation set
-        folds = make_splits(val, problem_class, label_col, k_folds=k_folds, val_frac=None)
-        val = folds.join(val)
+            # Discretize the train data
+            te_tr_preprocessor.discretize()
+            train = te_tr_preprocessor.data
 
-        # Iterate over each fold
-        for fold in range(1, k_folds + 1):
+            # Apply those discretizations to test and validation sets
+            test = te_tr_preprocessor.discretize_nontrain(test_data)
+            val = te_tr_preprocessor.discretize_nontrain(val_data)
 
-            print(f"\tFold: {fold}")
-            # Split test and train-validation sets
-            mask = val["fold"] == fold
-            val_test = val.copy()[mask]
-            val_train = val.copy()[~mask]
+            # Extract updated features and data classes
+            features = te_tr_preprocessor.features
+            data_classes = te_tr_preprocessor.data_classes
 
-            # Get standardization parameters from training-validation set
-            cols = get_standardization_cols(val_train, feature_cols)
-            means, std_devs = get_standardization_params(val_train.copy()[cols])
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Classification
+            if problem_class == "classification":
 
-            # Standardize data
-            val_test = val_test.drop(axis=1, labels=cols).join(standardize(val_test[cols], means, std_devs))
-            val_train = val_train.drop(axis=1, labels=cols).join(standardize(val_train[cols], means, std_devs))
+                # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # Initialize root node and tree
+                root = ClassificationDecisionNode(train, label, features, data_classes)
+                tree = ClassificationDecisionTree(verbose=True)
+                tree.add_node(root)
+                tree.populate_tree_metadata()
 
-            # Make the label the first column
-            val_test = val_test.reset_index().set_index(label_col).reset_index().set_index(index)
-            val_train = val_train.reset_index().set_index(label_col).reset_index().set_index(index)
+                # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # Build decision tree
+                tree.train()
+                tree.set_height()
 
-            for method in tuning_params["methods"]:
-                for run_id, run_di in runs.items():
-                    k, sigma, eps = run_di["k"], run_di["sigma"], run_di["eps"]
-                    if problem_class == "regression":
-                        metric = "rmseiqr"
-                        params = ["method", "k", "sigma", "epsilon"]
-                        knn = KNNRegressor(val_train, k, label_col, index, method=method)
-                        knn.make_lookup_table()
-                        knn.train(sigma, eps)
-                        pred = knn.predict(val_test, sigma)
-                        results = knn.make_results(val_test, pred)
-                        scores = knn.score(results)
-                        scores.update(k=k, method=method, sigma=sigma, epsilon=eps, problem_class=problem_class,
-                                      dataset_name=dataset_name, fold=fold)
-                        tuning_results.append(scores)
+                # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # Prune
+                unpruned_height = tree.height
+                tree.rules = tree.unpruned_rules = tree.make_rules(root)
+                n_unpruned_nodes = len(tree.nodes)
+                unpruned_feat_imps = get_feature_importances(tree, dataset_name, fold, pruned=False)
 
-                    else:
-                        metric = "acc"
-                        params = ["method", "k"]
-                        knn = KNNClassifier(val_train, k, label_col, index, method=method)
-                        knn.make_lookup_table()
-                        knn.train()
+                tree.prune_nodes(val)
+                tree.set_height()
+                pruned_height = tree.height
+                n_pruned_nodes = len(tree.nodes)
+                pruned_feat_imps = get_feature_importances(tree, dataset_name, fold, pruned=True)
+                tree.rules = tree.make_rules(root)
 
-                        pred = knn.predict(val_test)
+                # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # Predict
+                pruned_pred = tree.predict(test)
+                unpruned_pred = tree.predict(test, pruned=False)
 
-                        results = knn.make_results(val_test, pred)
-                        scores = knn.score(results).to_dict()[0]
-                        scores.update(k=k, method=method, sigma=None, epsilon=None, problem_class=problem_class,
-                                      dataset_name=dataset_name, fold=fold)
-                        tuning_results.append(scores)
+                # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # Score
+                pruned_score = tree.score(pruned_pred, test[label])
+                unpruned_score = tree.score(unpruned_pred, test[label])
 
-        # Organize tuning results and select best params across folds
-        cols = ["dataset_name", "problem_class", "fold", "k", "method", "sigma", "epsilon"]
-        cols += [x for x in scores.keys() if x not in cols]
+                # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # Organize outputs
+                classification_results.append(dict(problem_class=problem_class, dataset_name=dataset_name, fold=fold,
+                                                   pruned_score=pruned_score, unpruned_score=unpruned_score,
+                                                   n_pruned_nodes=n_pruned_nodes, n_unpruned_nodes=n_unpruned_nodes,
+                                                   pruned_height=pruned_height, npruned_height=unpruned_height))
+                feature_importances.append(pruned_feat_imps)
+                feature_importances.append(unpruned_feat_imps)
+                print(f"{dataset_name}: pruned={pruned_score}, unpruned={unpruned_score}")
 
-        tuning_results = pd.DataFrame(tuning_results)[cols].sort_values(by=metric, ascending=False)
-        tuning_results[metric] = tuning_results[metric].fillna(0)
-        tuning_results["method"] = tuning_results["method"].astype(str)
-        tuning_results_li.append(tuning_results)
-
-        # Get best params by averaging across folds
-        best = tuning_results.copy().groupby(params)[metric].mean()
-
-        best = best.sort_values(ascending=False).head(1).reset_index().loc[0].to_dict()
-        best.update({"dataset_name": dataset_name, "problem_class": problem_class})
-        best_params.append(best)
-        best = defaultdict(lambda: None, best)
-        method, k, sigma, eps = best["method"], best["k"], best["sigma"], best["epsilon"]
-
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        logging.debug(f"Train / test {dataset_name}.")
-
-        # Make folds for validation set
-        folds = make_splits(train_test, problem_class, label_col, k_folds=k_folds, val_frac=None)
-        train_test = folds.join(train_test)
-
-        # Iterate over each fold
-        for fold in range(1, k_folds + 1):
-
-            # Split test and train-validation sets
-            mask = train_test["fold"] == fold
-            test = train_test.copy()[mask]
-            train = train_test.copy()[~mask]
-
-            # Get standardization parameters from training-validation set
-            cols = get_standardization_cols(train, feature_cols)
-            means, std_devs = get_standardization_params(train.copy()[cols])
-
-            # Standardize data
-            test = test.drop(axis=1, labels=cols).join(standardize(test[cols], means, std_devs))
-            train = train.drop(axis=1, labels=cols).join(standardize(train[cols], means, std_devs))
-
-            # Make the label the first column
-            test = test.reset_index().set_index(label_col).reset_index().set_index(index)
-            train = train.reset_index().set_index(label_col).reset_index().set_index(index)
-
-            if problem_class == "regression":
-                metric = "rmseiqr"
-                params = ["method", "k", "sigma", "epsilon"]
-                knn = KNNRegressor(train, k, label_col, index, method=method)
-                knn.make_lookup_table()
-                if len(knn.all_lookups) > 0:
-                    knn.train(sigma, eps)
-                    pred = knn.predict(test, sigma)
-                    results = knn.make_results(test, pred)
-                    scores = knn.score(results)
-                else:
-                    scores = dict(sse=0, rmse=0, nrmse=0, rmseiqr=0)
-                scores.update(k=k, method=method, sigma=sigma, epsilon=eps, problem_class=problem_class,
-                              dataset_name=dataset_name, fold=fold)
-
-
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Regression
             else:
-                metric = "acc"
-                params = ["method", "k"]
-                knn = KNNClassifier(val_train, k, label_col, index, method=method)
-                knn.make_lookup_table()
-                knn.train()
 
-                pred = knn.predict(val_test)
-                results = knn.make_results(val_test, pred)
-                scores = knn.score(results).to_dict()[0]
-                scores.update(k=k, method=method, sigma=None, epsilon=None, problem_class=problem_class,
-                              dataset_name=dataset_name, fold=fold)
-            testing_results.append(scores)
-            pd.DataFrame(testing_results).to_csv("testing_results.csv")
-            pd.DataFrame(best_params).set_index(["dataset_name", "problem_class"]).to_csv("best_params.csv")
+                # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # Tune
+                thetas = make_thetas(train, label, THETAS)
+                print(f"Thetas: {thetas}")
+                for theta_rel, theta_abs in thetas.items():
+                    try:
+                        print(f"Theta: {theta_rel}")
+                        # Initialize root node and tree
+                        root = RegressionDecisionNode(train, preprocessor.label, features, data_classes)
+                        tree = RegressionDecisionTree(theta=theta_abs, verbose=True)
+                        tree.add_node(root)
+                        tree.populate_tree_metadata()
 
-    # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-    logging.debug("Process outputs.")
-    testing_results = pd.DataFrame(testing_results)
-    testing_results[["sigma", "epsilon"]] = testing_results[["sigma", "epsilon"]].astype(str)
-    gp = ["dataset_name", "problem_class", "k", "method", "sigma", "epsilon"]
-    summary_results = testing_results.drop(axis=1, labels="fold").groupby(gp).mean()
-    best_params = pd.DataFrame(best_params).set_index(["dataset_name", "problem_class"])
+                        # Build decision tree
+                        tree.train()
 
-    # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                        # Predict
+                        tune_pred = tree.predict(val)
+                        test_pred = tree.predict(test)
+
+                        # Score
+                        tune_score = tree.score(tune_pred, val[label])
+                        test_score = tree.score(test_pred, test[label])
+
+                        # Append results
+                        regression_results.append([dataset_name, fold, theta_rel, theta_abs, tune_score, test_score])
+                    except:
+                        print(f"Error with dataset {dataset_name}, fold {fold}, theta_rel {theta_rel}.")
+                        logging.error(f"Error with dataset {dataset_name}, fold {fold}, theta_rel {theta_rel}.")
+
+    # Organize results
+    cols = ["dataset_name", "fold", "theta_rel", "theta_abs", "tune_mse", "test_mse"]
+    regression_results = pd.DataFrame(regression_results, columns=cols).sort_values(by="score")
+    classification_results = pd.DataFrame(classification_results)
+    feature_importances = pd.concat(feature_importances)
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     logging.debug("Save outputs.")
-    tuning_results_dst = dst_dir / "tuning_results.csv"
-    testing_results_dst = dst_dir / "testing_results.csv"
-    best_params_dst = dst_dir / "best_params.csv"
-    summary_dst = dst_dir / "summary.csv"
+    classification_results_dst = dst_dir / "classification_results.csv"
+    feature_importances_dst = dst_dir / "feature_importances.csv"
+    regression_results_dst = dst_dir / "regression_results.csv"
 
-    tuning_results.to_csv(tuning_results_dst, index=False)
-    testing_results.to_csv(testing_results_dst, index=False)
-    best_params.to_csv(best_params_dst)
-    summary_results.to_csv(summary_dst)
+    classification_results.to_csv(classification_results_dst, index=False)
+    feature_importances.to_csv(feature_importances_dst, index=False)
+    regression_results.to_csv(regression_results_dst, index=False)
 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     logging.debug("Finish.\n")
-
-
